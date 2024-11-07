@@ -6,9 +6,15 @@ interface Todos {
   title: string;
   userId: number;
 }
-export const fetchTodoApi = async (): Promise<Todos[]> => {
+export const fetchTodoApi = async (
+  id: string,
+  page: number
+): Promise<Todos[]> => {
   try {
-    const res = await axios.get("https://jsonplaceholder.typicode.com/todos");
+    console.log(id);
+    const res = await axios.get(
+      `https://jsonplaceholder.typicode.com/todos?_page=${page}`
+    );
     return res?.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
