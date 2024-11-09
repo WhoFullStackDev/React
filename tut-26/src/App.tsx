@@ -1,35 +1,62 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useMutation, useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { queryClient } from "./main";
 
-function App() {
-  const [count, setCount] = useState(0)
+const App = () => {
+  const mutation = useMutation({
+    mutationKey: ["addTodo"],
+    mutationFn: (newTodo: { id: Date; title: string }) => {
+      return axios.post("http://localhost:3000/todos", newTodo);
+    },
+    onSuccess: async (data, variables) => {
+      console.log("I'm first!");
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      queryClient.setQueryData(["todos", { id: variables.id }], data);
+    },
+    onSettled: async () => {
+      return await queryClient.invalidateQueries({ queryKey: ["todos"] });
+    },
+    retry: 3,
+  });
+
+  const { data } = useQuery({
+    queryKey: ["todos", { version: 20 }],
+    queryFn: async (): Promise<{ id: Date; title: string }[]> => {
+      const response = await axios.get("http://localhost:3000/todos");
+      return response.data;
+    },
+  });
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <div>
+      {mutation.isPending ? (
+        "Adding todo..."
+      ) : (
+        <>
+          {mutation.isError ? (
+            <div onClick={() => mutation.reset()}>
+              An error occurred: {mutation.error.message}
+            </div>
+          ) : null}
+          {mutation.isSuccess ? <div>Todo added!</div> : null}
+          <button
+            onClick={() => {
+              mutation.mutate({ id: new Date(), title: "Do Laundry" });
+            }}
+          >
+            Create Todo
+          </button>
+        </>
+      )}
+      <ul>
+        {Array.isArray(data) &&
+          data.map((todo, idx) => <li key={idx}>{todo.title}</li>)}
+        {mutation.isPending && (
+          <li style={{ opacity: 0.5 }}>{mutation.variables?.title}</li>
+        )}
+      </ul>
+    </div>
+  );
+};
 
-export default App
+export default App;
